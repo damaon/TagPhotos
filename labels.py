@@ -29,6 +29,7 @@ import argparse
 import os
 import sys
 from pathlib import Path
+import iptcinfo3
 
 import cv2
 import torch
@@ -157,9 +158,13 @@ def run(weights=ROOT / 'yolov5s.pt',  # model.pt path(s)
                 det[:, :4] = scale_coords(im.shape[2:], det[:, :4], im0.shape).round()
 
                 # Print results
+                tags = []
                 for c in det[:, -1].unique():
                     n = (det[:, -1] == c).sum()  # detections per class
                     s += f"{n} {names[int(c)]}{'s' * (n > 1)}, "  # add to string
+                    tags.append(names[int(c)])
+                
+                add_tags(p, tags)
 
                 # Write results
                 for *xyxy, conf, cls in reversed(det):
@@ -213,6 +218,15 @@ def run(weights=ROOT / 'yolov5s.pt',  # model.pt path(s)
     if update:
         strip_optimizer(weights)  # update model (to fix SourceChangeWarning)
 
+def add_tags(path, tags = []):
+    info = iptcinfo3.IPTCInfo(str(path), force=True)
+    # Add tags array to keywords field if it exists and make it unique
+    info['keywords'] = info['keywords'] if info['keywords'] else []
+    new_tags = list(set(info['keywords'] + tags))
+    print(new_tags)
+    # Save new tags as string
+    info['keywords'] = new_tags
+    info.save()
 
 def parse_opt():
     parser = argparse.ArgumentParser()
@@ -256,3 +270,5 @@ def main(opt):
 if __name__ == "__main__":
     opt = parse_opt()
     main(opt)
+
+# Function to add tags to image metadata on windows
